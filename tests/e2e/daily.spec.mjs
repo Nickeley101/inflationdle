@@ -116,7 +116,7 @@ test("misses say higher or lower and narrow the range", async ({page}) => {
 
 test("bad bids are refused without using up a guess", async ({page}) => {
   const r = await openGame(page);
-  for (const bad of ["abc", "0", "-5", "", "100001"]) {
+  for (const bad of ["abc", "0", "-5", "", "1000000001"]) {
     await bid(page, bad);
     await expect(page.locator("#err"), `bid "${bad}"`).toBeVisible();
     await expect(page.locator("#lcount")).toHaveText("0 of 6");
