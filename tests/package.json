@@ -11,7 +11,7 @@
     "serve": "node --disable-warning=ExperimentalWarning server.mjs"
   },
   "devDependencies": {
-    "@axe-core/playwright": "4.10.2",
-    "@playwright/test": "1.56.1"
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.64.0"
   }
 }
