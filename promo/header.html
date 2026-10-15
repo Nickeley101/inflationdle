@@ -1,0 +1,28 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;800&family=JetBrains+Mono:wght@400;600;800&family=IBM+Plex+Sans:wght@400;500;600&display=block">
+<script src="series.js"></script>
+<style>
+*{margin:0;box-sizing:border-box}
+body{width:1500px;height:500px;overflow:hidden;background:radial-gradient(900px 500px at 70% 40%,#12202c 0%,#0a0e13 70%);color:#dbe4ee;font-family:"IBM Plex Sans",system-ui,sans-serif}
+svg{position:absolute;inset:0}
+.t{position:absolute;right:90px;top:120px;text-align:right}
+.logo{font:800 120px/1 "Barlow Condensed","Arial Narrow",Impact,sans-serif;letter-spacing:.08em;color:#dbe4ee}
+.logo em{font-style:normal;color:#1fd67f}
+.tag{margin-top:14px;font:500 34px "IBM Plex Sans",sans-serif;color:#dbe4ee}
+.tag em{font-style:normal;color:#f5b83d}
+.tick{position:absolute;left:0;right:0;bottom:0;height:56px;border-top:1px solid #233040;background:#0d131aee;white-space:nowrap;overflow:hidden;font:600 21px/56px "JetBrains Mono",monospace;color:#7c8b9d;padding-left:400px}
+.tick span{padding-right:22px}.u{color:#1fd67f}
+</style></head><body>
+<svg id="s" viewBox="0 0 1500 500"></svg>
+<div class="t"><div class="logo">INFLATION<em>DLE</em></div><div class="tag">Guess what things cost, <em>any year since 1980</em>.<br>A new price every day.</div></div>
+<div class="tick" id="tk"></div>
+<script>
+// faint index lines: each item's price relative to 1980
+const ks=["GAS","EGGS","BREAD","COFFEE","BACON","BANANA","SUGAR"], x0=1980,x1=2026.6;
+const X=x=>(x-x0)/(x1-x0)*1500, Y=r=>440-(r-1)*55;
+document.getElementById("s").innerHTML=ks.map((k,i)=>{const P=SER[k].pts.filter(p=>p[0]>=1980), b=P[0][1];
+ return `<path d="${P.map((p,j)=>(j?"L":"M")+X(p[0]).toFixed(1)+" "+Y(p[1]/b).toFixed(1)).join("")}" fill="none" stroke="${i?"#233040":"#1fd67f"}" stroke-opacity="${i?.6:.4}" stroke-width="${i?3:5}"/>`}).join("");
+const CU=Math.round((CPI.v[CPI.v.length-1]/CPI.v[(1980-1975)*12]-1)*100);
+const T=[["EGGS","EGGS"],["BREAD","BREAD"],["COFFEE","COFFEE"],["BACON","BACON"],["GAS","GAS"]].map(([k,l])=>{const P=SER[k].pts, a=P.find(p=>p[0]===1980)[1];return [l,"+"+Math.round((P[P.length-1][1]/a-1)*100)+"%"]}).concat([["ALL PRICES","+"+CU+"%"]]);
+document.getElementById("tk").innerHTML="SINCE 1980: "+T.map(([a,b])=>`<span>${a} <b class="u">${b}</b></span>`).join("");
+</script></body></html>

@@ -1,0 +1,129 @@
+name: Daily evening video
+
+# Evening post: six U.S. prices in one year against today's (promo/evening.html, with its own synthesized soundtrack),
+# to YouTube Shorts and Bluesky, and saved to Google Drive with its caption for posting to TikTok by hand.
+# It never uses a round that is live or still to come (see --evening in scripts/daily-video.mjs). No X post: X charges per post.
+# 22:30 UTC is 6:30 PM Eastern (5:30 PM in winter).
+on:
+  schedule:
+    # GitHub starts scheduled runs late or skips them on busy days, so later backup times retry.
+    # The "Skip if today's evening video is already out" step makes sure only the first one posts.
+    - cron: "30 22 * * *"
+    - cron: "7 23 * * *"
+    - cron: "41 23 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only build the video and check the keys; don't post"
+        type: boolean
+        default: true
+      scheduled:
+        description: "Started by the on-time timer (cron/): skip if today's post is already out"
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - "scripts/ci-install.sh"
+      - "scripts/daily-video.mjs"
+      - "scripts/video-audio.mjs"
+      - "scripts/post-video-to-*.mjs"
+      - "scripts/save-to-drive.mjs"
+      - "promo/evening.html"
+      - ".github/workflows/daily-evening-post.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: daily-evening-post
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      DRY_RUN: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)) && '0' || '1' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Skip if today's evening video is already out
+        # A real post leaves a "posted-evening-YYYY-MM-DD" artifact (below); backup runs stop here when it exists.
+        id: done
+        if: github.event_name == 'schedule' || inputs.scheduled
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # GitHub sometimes starts a backup cron hours late, past midnight UTC, when it would post the next day's evening video
+          # in the morning. Before 20:00 UTC nothing posts; the next on-time run handles the new day.
+          if [ "$(date -u +%-H)" -lt 20 ]; then
+            echo "posted=yes" >> "$GITHUB_OUTPUT"; echo "Too early in the UTC day for the evening video; nothing to do."; exit 0
+          fi
+          posted=$(bash scripts/already-posted.sh daily-evening-post.yml "posted-evening-$(date -u +%F)")
+          echo "posted=$posted" >> "$GITHUB_OUTPUT"
+          [ "$posted" = yes ] && echo "Today's evening video already went out; nothing to do." || true
+      - name: Install Playwright Chromium and ffmpeg
+        if: steps.done.outputs.posted != 'yes'
+        # Retries with time limits, so a stalled package mirror can't eat the whole run (see the script).
+        timeout-minutes: 25
+        run: bash scripts/ci-install.sh --ffmpeg
+      - name: Render the evening video
+        if: steps.done.outputs.posted != 'yes'
+        # Pull requests build a fixed day so the video is always exercised.
+        run: node scripts/daily-video.mjs --evening ${{ github.event_name == 'pull_request' && '--day 5' || '' }}
+      - name: Show the TikTok caption on the run page
+        if: ${{ steps.done.outputs.posted != 'yes' && hashFiles('out/video.json') != '' }}
+        run: |
+          node -e 'const m=require("./out/video.json");console.log("### Caption for TikTok and Reels\n\n```\n"+m.caption.replace("Link in bio.","Play at inflationdle.com")+"\n```")' >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep the video as a run artifact
+        if: steps.done.outputs.posted != 'yes'
+        # A full artifact store must never stop or repeat a post (see scripts/already-posted.sh).
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: daily-evening
+          path: |
+            out/video.mp4
+            out/video-cover.png
+            out/video.json
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Post the video to Bluesky
+        if: steps.done.outputs.posted != 'yes'
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+        run: node scripts/post-video-to-bluesky.mjs
+      - name: Upload the video to YouTube Shorts
+        # Runs even if Bluesky failed, so one network being down doesn't skip the other.
+        if: ${{ !cancelled() && steps.done.outputs.posted != 'yes' }}
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+        run: node scripts/post-video-to-youtube.mjs
+      - name: Save the video and caption to Google Drive
+        # For posting to TikTok from a phone.
+        if: ${{ !cancelled() && steps.done.outputs.posted != 'yes' }}
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+        run: node scripts/save-to-drive.mjs
+      # The video scripts write out/posted-video after a real post.
+      - name: Remember that today's evening video went out
+        id: day
+        if: ${{ !cancelled() && hashFiles('out/posted-video') != '' }}
+        run: echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+      - name: Upload the posted marker
+        if: ${{ !cancelled() && hashFiles('out/posted-video') != '' }}
+        # A full artifact store must never stop or repeat a post (see scripts/already-posted.sh).
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: posted-evening-${{ steps.day.outputs.date }}
+          path: out/posted-video
+          retention-days: 2

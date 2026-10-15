@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Inflationdle: Daily Price Guessing Game</title>
+<meta name="description" content="Inflationdle is a free daily game: guess what groceries, gas and gadgets really cost in years past, using official U.S. price records going back as far as 1885. Six guesses, a new item every day.">
+<meta property="og:title" content="Inflationdle">
+<meta property="og:description" content="Guess what it cost. A new item every day.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://inflationdle.com/">
+<meta property="og:image" content="https://inflationdle.com/og.png?v=3">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Inflationdle: guess what it cost. A new item every day.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://inflationdle.com/">
+<meta name="msvalidate.01" content="2A82BAD0D958822D4AE3F2880905645D">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+ {"@type":"WebSite","name":"Inflationdle","url":"https://inflationdle.com/"},
+ {"@type":"VideoGame","name":"Inflationdle","url":"https://inflationdle.com/","description":"A free daily game where you guess what everyday items cost in years past, using U.S. Bureau of Labor Statistics price data.","genre":["Puzzle","Trivia"],"gamePlatform":"Web browser","applicationCategory":"Game","operatingSystem":"Any","image":"https://inflationdle.com/og.png?v=3","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"sameAs":["https://x.com/Inflationdle","https://bsky.app/profile/inflationdle.bsky.social","https://www.youtube.com/@Inflationdle","https://ko-fi.com/inflationdle"]},
+ {"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is Inflationdle?","acceptedAnswer":{"@type":"Answer","text":"A free daily game about prices. Each day shows one real item from the past, like a dozen eggs in 1990, a gallon of gas in Chicago or the first iPhone, and you have six bids to guess what it cost. There's no account, no ads and nothing to install."}},{"@type":"Question","name":"Where do the prices come from?","acceptedAnswer":{"@type":"Answer","text":"Official records. Groceries, gas and electricity are U.S. Bureau of Labor Statistics average retail prices, via FRED. Electronics and cars use their U.S. launch price (MSRP). Gold and silver come from the World Bank. The Japan, Canada and UK dailies use each country's statistics office."}},{"@type":"Question","name":"Can I play for another country?","acceptedAnswer":{"@type":"Answer","text":"Yes. Tap the flag next to Daily and Practice to switch to Japan, Canada or the UK. Each country has its own daily item, streak and currency."}},{"@type":"Question","name":"Where can I look up old prices?","acceptedAnswer":{"@type":"Answer","text":"The price history pages chart every item by year, with each price adjusted for inflation. An item is hidden there while it's today's round, and opens once you've played it."}}]}
+]}
+</script>
+<link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#0a0e13">
+<script src="src/theme.js?v=20260928a"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;800&family=JetBrains+Mono:wght@400;600;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="src/styles.css?v=20260930q">
+</head>
+<body>
+
+<div class="tape" aria-hidden="true"><div class="tape-track" id="tape"></div></div>
+
+<main class="wrap">
+  <header class="top">
+    <div class="brand"><h1>Inflation<em>dle</em></h1><span class="no" id="no"></span></div>
+    <div class="modes" role="group" aria-label="Mode">
+      <select class="chip" id="ctySel" aria-label="Country" hidden></select>
+      <button class="chip" id="mDaily" aria-pressed="true" type="button">Daily</button>
+      <button class="chip" id="mPractice" aria-pressed="false" type="button">Practice</button>
+      <button class="chip themeBtn" id="themeBtn" type="button" aria-pressed="false" aria-label="Switch to light mode"><svg class="sun" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="3.2" fill="currentColor"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6L13 13M3 13l1.4-1.4M11.6 4.4L13 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><svg class="moon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z" fill="currentColor"/></svg></button>
+    </div>
+  </header>
+
+  <section class="quote">
+    <div class="quote-head">
+      <div class="head-grid">
+        <div class="tags"><span class="sym" id="sym"></span></div>
+        <select class="chip" id="catSel" aria-label="Practice category" hidden><option value="">All goods</option><option>Groceries</option><option>Energy</option><option>Electronics</option><option>Subscriptions</option><option>Cars</option><option>Fast food</option><option>Metals</option></select>
+        <h2 class="item" id="item"></h2>
+        <div class="unit" id="unit"></div>
+      </div>
+    </div>
+    <div class="meta">
+      <div><span class="lbl">Guesses</span><div class="lives"><span id="lives" role="img"></span><span class="lcount" id="lcount"></span></div></div>
+      <div><span class="lbl">To win</span><span class="val" id="zone">Within 5% or 2¢</span></div>
+    </div>
+    <form class="order" id="form" autocomplete="off">
+      <label class="field" for="guess"><span id="curLbl">US$</span><input id="guess" inputmode="decimal" placeholder="0.00" aria-label="Your price guess in US dollars" aria-describedby="range err"><span class="per" id="per" hidden></span></label>
+      <button class="buy" id="buy" type="submit">Place bid</button>
+    </form>
+    <p class="range" id="range" hidden></p>
+    <p class="err" id="err" role="alert" hidden></p>
+    <p class="sr" id="sr" role="status"></p>
+    <ol class="log" id="log"></ol>
+    <div class="legend">
+      <span><b style="background:var(--up)"></b>Hit: within 5%</span>
+      <span><b style="background:var(--warm)"></b>Close: within 25%</span>
+      <span><b style="background:var(--down)"></b>Miss</span>
+    </div>
+    <div class="reopen" id="reopen" hidden><button class="btn primary" id="showRes" type="button">View results</button></div>
+    <div class="reopen" id="skipRow" hidden><button class="btn" id="skip" type="button">Skip this item</button></div>
+  </section>
+
+  <dialog class="result" id="result" aria-labelledby="verdict">
+    <div class="res-head"><div class="verdict" id="verdict"></div><button class="close" id="closeRes" type="button" aria-label="Close results">&times;</button></div>
+    <div class="figs">
+      <div><span class="lbl">Actual price</span><span class="val" id="rActual"></span></div>
+      <div><span class="lbl" id="rNowLbl">Latest price</span><span class="val" id="rNow"></span></div>
+      <div><span class="lbl">Since then</span><span class="val" id="rChg"></span></div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="copy" type="button">Share</button>
+      <button class="btn" id="again" type="button" hidden>Next practice round</button>
+    </div>
+    <p class="note" id="shareHelp" hidden>Couldn't copy automatically. Select the text below and copy it.</p>
+    <pre class="share" id="shareText" hidden></pre>
+    <p class="fact" id="closest" hidden></p>
+    <p class="fact" id="fact" hidden></p>
+    <svg class="chart" id="chart" viewBox="0 0 600 200" role="group" tabindex="0" aria-label="Price history chart" aria-describedby="chartHelp"></svg>
+    <p class="sr" id="chartHelp">Use the left and right arrow keys to read each price.</p>
+    <p class="sr" id="chartSr" aria-live="polite"></p>
+    <p class="note" id="src"></p>
+    <p class="next" id="next" hidden>Next item in <b id="nextIn">--:--:--</b></p>
+    <div>
+      <div class="stats">
+        <div><div class="val" id="sPlayed">0</div><div class="cap">Played</div></div>
+        <div><div class="val" id="sWin">0%</div><div class="cap">Win rate</div></div>
+        <div><div class="val" id="sStreak">0</div><div class="cap">Streak</div></div>
+        <div><div class="val" id="sBest">0</div><div class="cap">Best</div></div>
+      </div>
+      <p class="cap dist-h">Guesses to win</p>
+      <ol class="dist" id="dist"></ol>
+    </div>
+    <p class="tip">Free, no ads. <a href="https://ko-fi.com/inflationdle" target="_blank" rel="noopener">Buy me a coffee</a> · <a href="https://tally.so/r/jaNz2a" target="_blank" rel="noopener">Suggest an item</a></p>
+  </dialog>
+
+  <dialog class="result help" id="help" aria-labelledby="helpH">
+    <div class="res-head"><h2 class="verdict" id="helpH">How to play</h2><button class="close" id="closeHelp" type="button" aria-label="Close how to play">&times;</button></div>
+    <p id="howPlay">Guess what the item cost in that U.S. market and month, in US dollars. You get six bids. Each miss tells you to go higher or lower and how close you were. Land within 5% of the target price to win. On cheap items, anything within 2¢ counts, so whole cents are always enough.</p>
+    <p>A new item drops every day at midnight. Practice mode serves random rounds from the same archive.<span class="keys"> On a keyboard, Enter places a bid, N deals a new practice item and R reopens your results.</span></p>
+    <p id="howSrc">Groceries and energy use U.S. Bureau of Labor Statistics average retail prices (January of each year), via FRED. Electronics use U.S. launch prices (MSRP). Cars use the automaker's base MSRP for the cheapest version, before the destination fee.</p>
+    <button class="btn primary" id="gotIt" type="button">Got it</button>
+  </dialog>
+
+  <div class="visits" id="visits" hidden>
+    <span class="vlbl">Visitors so far</span>
+    <span class="odo" id="vOdo" role="img" aria-label="Visitors"></span>
+    <span class="vtoday" id="vToday"></span>
+  </div>
+
+  <section class="how">
+    <p><a href="#how-to-play" id="howLink">How to play</a> · <a href="/prices/">Price history</a> · <a href="https://tally.so/r/jaNz2a" target="_blank" rel="noopener">Suggest an item</a> · <a href="https://ko-fi.com/inflationdle" target="_blank" rel="noopener">Buy me a coffee</a> · <a href="privacy.html">Privacy</a><br>Made by Wesley</p>
+    <p>Yesterday's answer goes up each morning on <a href="https://x.com/Inflationdle" target="_blank" rel="noopener">X</a>, <a href="https://bsky.app/profile/inflationdle.bsky.social" target="_blank" rel="noopener">Bluesky</a> and <a href="https://www.youtube.com/@Inflationdle" target="_blank" rel="noopener">YouTube</a>.</p>
+  </section>
+  <details class="how faq">
+    <summary><h2>Questions</h2></summary>
+    <h3>What is Inflationdle?</h3>
+    <p>A free daily game about prices. Each day shows one real item from the past, like a dozen eggs in 1990, a gallon of gas in Chicago or the first iPhone, and you have six bids to guess what it cost. There's no account, no ads and nothing to install.</p>
+    <h3>Where do the prices come from?</h3>
+    <p>Official records. Groceries, gas and electricity are U.S. Bureau of Labor Statistics average retail prices, via FRED. Electronics and cars use their U.S. launch price (MSRP). Gold and silver come from the World Bank. The Japan, Canada and UK dailies use each country's statistics office.</p>
+    <h3>Can I play for another country?</h3>
+    <p>Yes. Tap the flag next to Daily and Practice to switch to Japan, Canada or the UK. Each country has its own daily item, streak and currency.</p>
+    <h3>Where can I look up old prices?</h3>
+    <p>The <a href="/prices/">price history pages</a> chart every item by year, with each price adjusted for inflation. An item is hidden there while it's today's round, and opens once you've played it.</p>
+  </details>
+</main><script src="src/game.js?v=20260930h" defer></script><script src="src/counter.js?v=20260929a" defer></script>
+</body>
+</html>

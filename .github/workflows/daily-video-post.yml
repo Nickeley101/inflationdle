@@ -1,0 +1,171 @@
+name: Daily video
+
+# Every morning, render the newest round that has ended everywhere as a 9:16 "guess the price" video and post it
+# to Bluesky and YouTube Shorts. A puzzle day ends in the last time zone (UTC-12) at 12:00 UTC the next day, so
+# the reveal spoils nothing, and the script counts from the clock, so a run GitHub starts late can't reveal a live
+# round either. The video is also kept as a run artifact (video.mp4 + caption) for posting to TikTok and
+# Instagram Reels by hand, with a trending sound.
+# 12:10 UTC is about 8 AM Eastern (7 AM in winter), just after yesterday's round ends everywhere and before the 13:00 card.
+on:
+  schedule:
+    # GitHub starts scheduled runs late or skips them on busy days, so later backup times retry.
+    # The "Skip if today's video is already out" step makes sure only the first one posts.
+    - cron: "10 12 * * *"
+    - cron: "47 13 * * *"
+    - cron: "57 15 * * *"
+    - cron: "27 18 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only build the video and check the keys; don't post"
+        type: boolean
+        default: true
+      scheduled:
+        description: "Started by the on-time timer (cron/): skip if today's post is already out"
+        type: boolean
+        default: false
+      round:
+        description: "Optional one-off round instead of yesterday's, e.g. EGGS:1990 (refused if it's a live or coming daily puzzle)"
+        type: string
+        default: ""
+      title:
+        description: "Optional YouTube title (default: the generated question)"
+        type: string
+        default: ""
+      description:
+        description: "Optional YouTube description (default: the generated caption)"
+        type: string
+        default: ""
+      post_to_bluesky:
+        description: "Also post it to Bluesky"
+        type: boolean
+        default: true
+  pull_request:
+    paths:
+      - "scripts/ci-install.sh"
+      - "scripts/daily-video.mjs"
+      - "scripts/post-video-to-*.mjs"
+      - "scripts/save-to-drive.mjs"
+      - "scripts/post-to-bluesky.mjs"
+      - "scripts/promo-data.mjs"
+      - "promo/guess.html"
+      - "promo/render.mjs"
+      - "data/schedule.json"
+      - ".github/workflows/daily-video-post.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: daily-video-post
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      DRY_RUN: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)) && '0' || '1' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Skip if today's video is already out
+        # A real post leaves a "posted-video-YYYY-MM-DD" artifact (below); backup runs stop here when it exists
+        # or when a scheduled run already succeeded today.
+        id: done
+        if: github.event_name == 'schedule' || inputs.scheduled
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # GitHub sometimes starts a backup cron hours late, past midnight UTC, when yesterday's answer would be posted again, or a round still being played.
+          # Before 12:00 UTC nothing posts; the next on-time run handles the new day.
+          if [ "$(date -u +%-H)" -lt 12 ]; then
+            echo "posted=yes" >> "$GITHUB_OUTPUT"; echo "Too early in the UTC day for the video; nothing to do."; exit 0
+          fi
+          posted=$(bash scripts/already-posted.sh daily-video-post.yml "posted-video-$(date -u +%F)")
+          n=$([ "$posted" = yes ] && echo 1 || echo 0)
+          # Also counts an earlier scheduled run that finished today, which covers runs from before the marker existed.
+          # Only runs from 12:00 UTC on count: a late backup that started after midnight did nothing (too early) but still ends "success".
+          r=$(gh api "repos/${{ github.repository }}/actions/workflows/daily-video-post.yml/runs?event=schedule&status=success&created=%3E%3D$(date -u +%F)T12:00:00Z" --jq '.total_count')
+          n=$((n + r))
+          echo "posted=$([ "$n" -gt 0 ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+          [ "$n" -gt 0 ] && echo "Today's video already went out; nothing to do." || true
+      - name: Install Playwright Chromium and ffmpeg
+        if: steps.done.outputs.posted != 'yes'
+        # Retries with time limits, so a stalled package mirror can't eat the whole run (see the script).
+        timeout-minutes: 25
+        run: bash scripts/ci-install.sh --ffmpeg
+      - name: Render the video
+        if: steps.done.outputs.posted != 'yes'
+        env:
+          ROUND: ${{ inputs.round }}
+          TITLE: ${{ inputs.title }}
+          DESCRIPTION: ${{ inputs.description }}
+        run: |
+          if [ -n "$ROUND" ]; then node scripts/daily-video.mjs --round "$ROUND"
+          else node scripts/daily-video.mjs ${{ github.event_name == 'pull_request' && '--day 5' || '' }}; fi
+      - name: Show the TikTok caption on the run page
+        # The run's summary page shows the caption, so it can be copied on a phone without unzipping the artifact.
+        if: ${{ steps.done.outputs.posted != 'yes' && hashFiles('out/video.json') != '' }}
+        run: |
+          node -e 'const m=require("./out/video.json");console.log("### Caption for TikTok and Reels\n\n```\n"+m.caption.replace("Link in bio.","Play at inflationdle.com")+"\n```")' >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep the video for TikTok and Reels
+        if: steps.done.outputs.posted != 'yes'
+        # A full artifact store must never stop or repeat a post (see scripts/already-posted.sh).
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: daily-video
+          path: |
+            out/video.mp4
+            out/video-cover.png
+            out/video.json
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Post to Bluesky
+        if: ${{ steps.done.outputs.posted != 'yes' && (github.event_name != 'workflow_dispatch' || inputs.post_to_bluesky) }}
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+        run: node scripts/post-video-to-bluesky.mjs
+      - name: Upload to YouTube Shorts
+        # Runs even if Bluesky failed, so one network being down doesn't skip the other.
+        if: ${{ !cancelled() && steps.done.outputs.posted != 'yes' }}
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+        run: node scripts/post-video-to-youtube.mjs
+      - name: Check the latest Shorts are still public
+        # YouTube can lock uploads from an unaudited API project to private. Warns only; never fails the run.
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.done.outputs.posted != 'yes' }}
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+        run: node scripts/check-youtube-privacy.mjs
+      - name: Save the video and caption to Google Drive
+        # For posting to TikTok from a phone. A dry run until the GDRIVE_REFRESH_TOKEN secret exists.
+        if: ${{ !cancelled() && steps.done.outputs.posted != 'yes' }}
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+        run: node scripts/save-to-drive.mjs
+      # A one-off round doesn't count as the day's video.
+      - name: Remember that today's video went out
+        id: day
+        if: ${{ !cancelled() && hashFiles('out/posted-video') != '' && inputs.round == '' }}
+        run: echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+      - name: Upload the posted marker
+        if: ${{ !cancelled() && hashFiles('out/posted-video') != '' && inputs.round == '' }}
+        # A full artifact store must never stop or repeat a post (see scripts/already-posted.sh).
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: posted-video-${{ steps.day.outputs.date }}
+          path: out/posted-video
+          retention-days: 2

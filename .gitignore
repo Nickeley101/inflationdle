@@ -1,0 +1,8 @@
+node_modules/
+.DS_Store
+.env
+out/
+promo/frames/
+promo/*.mp4
+test-results/
+playwright-report/

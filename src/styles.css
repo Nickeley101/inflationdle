@@ -1,0 +1,217 @@
+:root{
+  color-scheme: dark;
+  --bg:#0a0e13; --panel:#11171f; --panel2:#161e28; --line:#233040; --text:#dbe4ee; --muted:#7c8b9d;
+  --up:#1fd67f; --up-ink:#1fd67f; --down:#ff4d5e; --warm:#f5b83d; --warm-ink:#f5b83d; --cyan:#4cc9f0;
+  /* Glow is kept for a few moments that earn it: the wordmark, the round's year, the two main buttons, the verdict,
+     the price reveal, a hit and the chart line. Never on body text. */
+  --glow-up:0 0 22px rgba(31,214,127,.5); --glow-down:0 0 20px rgba(255,77,94,.4); --glow-cyan:0 0 18px rgba(76,201,240,.4);
+  --up-bg:rgba(31,214,127,.12); --down-bg:rgba(255,77,94,.12); --warm-bg:rgba(245,184,61,.12);
+  --inset:#070a0e; --on-up:#04130b; --on-cyan:#041018; --backdrop:rgba(3,6,10,.82); --odo-shade:rgba(0,0,0,.9);
+  --soft-up:0 0 14px rgba(31,214,127,.22); --soft-cyan:0 0 16px rgba(76,201,240,.25); --pl-glow:drop-shadow(0 0 4px rgba(76,201,240,.45));
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --disp:"Barlow Condensed","Arial Narrow",Impact,sans-serif;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+/* Light mode, chosen with the sun/moon button (src/theme.js). Same trading-screen layout on a paper-white terminal:
+   darker greens, reds and blues so text keeps its contrast on white, and no glow. */
+:root[data-theme="light"]{
+  color-scheme: light;
+  --bg:#eef1f5; --panel:#ffffff; --panel2:#f5f7fa; --line:#d3dbe5; --text:#0f1823; --muted:#5b6878;
+  --up:#5ab649; --up-ink:#2f7d22; --down:#c8203a; --warm:#f2b21b; --warm-ink:#8a5a00; --cyan:#0a74a6;
+  --glow-up:none; --glow-down:none; --glow-cyan:none;
+  --up-bg:rgba(90,182,73,.14); --down-bg:rgba(200,32,58,.08); --warm-bg:rgba(242,178,27,.17);
+  --inset:#f5f7fa; --on-up:#04130b; --on-cyan:#ffffff; --backdrop:rgba(15,24,35,.45); --odo-shade:rgba(15,24,35,.12);
+  --soft-up:none; --soft-cyan:none; --pl-glow:none;
+}
+:root[data-theme="light"] .sym{color:#1d1500}
+/* On white, yellow only reads as a fill: the CLOSE badge becomes a solid yellow tag, and yellow text uses a deep gold. */
+:root[data-theme="light"] .log li .dir .tag{background:var(--warm);border-color:var(--warm);color:#1d1500}
+:root[data-theme="light"] .tape{background:#0f1823} :root[data-theme="light"] .tape-item b{color:#e8eef5}
+:root[data-theme="light"] .tape-item span{color:#93a3b5} :root[data-theme="light"] .tape .pos{color:#35d98a} :root[data-theme="light"] .tape .neg{color:#ff6b7a}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--bg);margin:0}
+::selection{background:var(--cyan);color:var(--bg)}
+html{scrollbar-color:var(--line) var(--bg)}
+input{caret-color:var(--cyan)}
+body{color:var(--text);font:15px/1.5 var(--sans);min-height:100%}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ticker tape */
+.tape{border-bottom:1px solid var(--line);background:var(--inset);overflow:hidden;white-space:nowrap;font:600 12px/1 var(--mono);letter-spacing:.02em}
+.tape-track{display:inline-flex;gap:28px;padding:9px 0;animation:tape 60s linear infinite}
+.tape-item{display:inline-flex;gap:8px;align-items:baseline}
+.tape-item b{color:var(--text)} .tape-item span{color:var(--muted)}
+.pos{color:var(--up-ink)} .neg{color:var(--down)}
+@keyframes tape{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.tape-track{animation:none}}
+
+.wrap{max-width:640px;margin:0 auto;padding-inline:16px;padding-block:18px 48px;display:grid;gap:16px}
+header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand h1{margin:0;font:800 34px/1 var(--disp);letter-spacing:.01em;text-transform:uppercase}
+.brand h1 em{font-style:normal;color:var(--up);text-shadow:var(--glow-up)}
+.brand .no{font:600 15px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+/* The 320px-wide iPhones: a smaller wordmark keeps the name and game number inside the screen. */
+@media (max-width:360px){.brand h1{font-size:30px}}
+.modes{display:flex;gap:6px}
+.chip{border:1px solid var(--line);background:var(--panel);min-height:36px;padding:6px 12px;border-radius:4px;font:600 12px var(--mono);letter-spacing:.04em;text-transform:uppercase;cursor:pointer;color:var(--muted)}
+.chip[aria-pressed="true"]{color:var(--bg);background:var(--cyan);border-color:var(--cyan)}
+.themeBtn,.themeBtn[aria-pressed="true"]{display:inline-grid;place-items:center;min-width:44px;padding:6px 10px;color:var(--muted);background:var(--panel);border-color:var(--line)}
+.themeBtn:hover{color:var(--text)} .themeBtn .moon,[data-theme="light"] .themeBtn .sun{display:none} [data-theme="light"] .themeBtn .moon{display:block}
+
+/* quote panel */
+.quote{background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.quote-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:16px 18px 12px;border-bottom:1px solid var(--line)}
+select.chip{appearance:none;padding-right:28px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%237c8b9d' stroke-width='1.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+/* Practice's category picker shares the ticker-symbol row; negative margins keep that row the same height in both modes. */
+.head-grid{flex:1;display:grid;grid-template-columns:1fr auto;align-items:center}
+.head-grid>:not(.tags):not(select){grid-column:1/-1}
+#catSel{margin-block:-10px}
+.sym{font:800 13px var(--mono);color:var(--bg);background:var(--warm);padding:3px 7px;border-radius:2px;letter-spacing:.06em}
+.item{margin:10px 0 0;font:700 clamp(30px,8vw,44px)/1 var(--disp);text-transform:uppercase;text-wrap:balance}
+.unit{color:var(--muted);font-size:13px;margin-top:6px}
+.unit b{color:var(--text);font-weight:600}
+.item .yr{color:var(--cyan);white-space:nowrap;text-shadow:var(--glow-cyan)}
+.meta{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--line)}
+.meta>div{padding:10px 18px;display:grid;gap:2px}
+.meta>div+div{border-left:1px solid var(--line)}
+.meta>[hidden]+div{grid-column:1/-1;border-left:0}
+.lbl{font:600 11.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.val{font:600 15px var(--mono)}
+.lives{display:flex;align-items:center;gap:10px;margin-top:2px} #lives{display:flex;gap:4px}
+.lcount{font:600 13px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.lives i{width:10px;height:10px;border-radius:2px;background:var(--up);display:block}
+.lives i.used{background:var(--line)} .lives i.cold{background:var(--down)} .lives i.warm{background:var(--warm)} .lives i.hit{background:var(--up)}
+
+form.order{display:flex;gap:8px;padding:14px 18px;flex-wrap:wrap}
+.field{flex:1 1 180px;min-width:0;display:flex;align-items:center;background:var(--inset);border:1px solid var(--line);border-radius:4px;padding:0 12px}
+.field span{font:600 22px var(--mono);color:var(--muted)}
+.field input{flex:1;min-width:0;width:100%;background:transparent;border:0;outline:0;font:600 24px var(--mono);padding:10px 8px;font-variant-numeric:tabular-nums}
+.field .per{font:600 16px var(--mono);color:var(--cyan);white-space:nowrap;padding-left:4px}
+.field input::placeholder{color:var(--muted);opacity:1}
+.field:focus-within{border-color:var(--cyan)}
+.buy{flex:0 0 auto;background:var(--up);color:var(--on-up);border:0;border-radius:4px;padding:0 22px;font:800 18px var(--disp);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;min-height:50px}
+.buy:disabled{opacity:.4;cursor:default}
+.buy{box-shadow:var(--soft-up)} .buy:not(:disabled):hover,.buy:focus-visible{box-shadow:var(--glow-up)}
+.range,.err{padding:0 18px 10px;margin:-6px 0 0;font-size:14px}
+.range{color:var(--muted)} .err{color:var(--down)}
+.range+.err{margin-top:-4px}
+/* When a bid is refused the error already restates the range. */
+.range.muted-by-err{display:none}
+
+/* order log */
+.log{list-style:none;margin:0;padding:0 18px 16px;display:grid;gap:6px}
+/* The bid form normally spaces the log from the facts above; once it's gone the log needs its own gap. */
+form.order[hidden]~.log{padding-top:14px}
+.log li{display:grid;grid-template-columns:28px 10ch 1fr;gap:12px;align-items:center;padding:9px 12px;border-radius:4px;font:600 15px var(--mono);font-variant-numeric:tabular-nums;border:1px solid transparent}
+.log li .n{color:var(--muted);font-size:12px}
+/* Fixed-width, left-aligned direction cell so the arrows line up on every row. */
+.log li .dir{font:800 13px var(--mono);letter-spacing:.06em;display:grid;grid-template-columns:1.4em 5.2em 4.2em;align-items:center}
+.log li .dir .tag{justify-self:start;font-weight:600;font-size:12px;padding:1px 5px;border:1px solid currentColor;border-radius:2px}
+.log li .dir i{font-style:normal}
+.log li.hit{background:var(--up-bg);border-color:var(--up);box-shadow:var(--soft-up)} .log li.hit .dir{color:var(--up-ink)}
+/* A win shows the real price at the right of the hit row, as a loss does in its answer row. */
+.log li.hit .dir{min-width:0;display:flex;flex-wrap:wrap;align-items:baseline;column-gap:0;row-gap:2px} .log li.hit .dir i{width:1.4em}
+.log li .dir .act{margin-left:auto;padding-left:12px;font:500 12px var(--sans);letter-spacing:0;color:var(--muted);text-align:right}
+.log li .dir .act em{font:600 15px var(--mono);font-style:normal;color:var(--text);margin-left:6px;white-space:nowrap}
+.log li.warm{background:var(--warm-bg)} .log li.warm .dir{color:var(--warm-ink)}
+.log li.cold{background:var(--down-bg)} .log li.cold .dir{color:var(--down)}
+.log li.empty{border-color:var(--line);color:var(--line)}
+.log li.ans{border-color:var(--line);color:var(--text)} .log li.ans .dir{font:500 13px var(--sans);letter-spacing:0;color:var(--muted);display:block}
+.legend{display:flex;gap:6px 14px;flex-wrap:wrap;padding:0 18px 14px;font-size:13px;color:var(--muted)}
+.legend b{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:0}
+
+/* result */
+.result{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:18px;width:min(560px,calc(100% - 32px));max-height:calc(100% - 32px);max-height:calc(100dvh - 32px);overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+/* Plain block flow, not grid: some iOS WebViews (Facebook Messenger) shrank grid rows to fit the height cap, so the
+   price boxes got clipped and the chart overlapped the text below it. In block flow a child can never be squeezed. */
+.result[open]{display:block}
+.result[open]>*+*{margin-top:14px}
+.result .figs{flex:none;min-height:min-content}
+.result::backdrop{background:var(--backdrop)}
+/* Lock the page behind the open pop-up so scrolling only moves the pop-up. */
+html.modal-open,html.modal-open body{overflow:hidden;overscroll-behavior:none}
+html.modal-open .tape-track{animation-play-state:paused}
+.help p{color:var(--muted);font-size:14.5px;margin:12px 0 0;max-width:65ch}.help #gotIt{margin-top:18px}.help .verdict{margin:0;font-size:26px}
+.res-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.close{background:none;border:1px solid var(--line);border-radius:4px;width:44px;height:44px;flex:0 0 auto;font:600 20px/1 var(--mono);color:var(--muted);cursor:pointer}
+.close:hover{color:var(--text)}
+.reopen{padding:0 18px 16px}
+.reopen .btn{width:100%}
+@media (prefers-reduced-motion:no-preference){.result[open]{animation:pop .18s ease-out}}
+@keyframes pop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+.verdict{font:800 30px/1 var(--disp);text-transform:uppercase;letter-spacing:.02em}
+.verdict.win{color:var(--up);text-shadow:var(--glow-up)} .verdict.lose{color:var(--down);text-shadow:var(--glow-down)}
+.figs{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.figs div{background:var(--panel2);padding:10px 12px;display:grid;gap:2px;align-content:space-between}
+.figs .val{font-size:18px}
+.figs .lbl{font:500 13px/1.3 var(--sans);letter-spacing:0;text-transform:none}
+.chart{width:100%;height:auto;min-height:150px;display:block;touch-action:pan-y;cursor:crosshair;border-radius:4px}
+.chart:focus-visible{outline:2px solid var(--cyan);outline-offset:4px}
+.chart text{font:600 11.5px var(--mono);fill:var(--muted)}
+.chart .pl{filter:var(--pl-glow)}
+.fact{margin:0;font-size:14px;line-height:1.45;color:var(--text)}
+.note{font-size:12.5px;color:var(--muted);margin:0}
+.note a{color:var(--cyan)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.actions .btn{flex:1}
+.actions .btn.primary{font-size:15px;min-height:48px}
+.btn{border:1px solid var(--line);background:var(--panel2);border-radius:4px;min-height:44px;padding:10px 16px;font:700 13px var(--mono);letter-spacing:.04em;text-transform:uppercase;cursor:pointer}
+.tip{margin:0;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--muted);text-align:center}
+.tip a{color:var(--text);white-space:nowrap}
+.btn.primary{background:var(--cyan);border-color:var(--cyan);color:var(--on-cyan);box-shadow:var(--soft-cyan)}
+pre.share{margin:0;background:var(--inset);border:1px solid var(--line);border-radius:4px;padding:12px;font:13px/1.5 var(--mono);white-space:pre-wrap;user-select:all}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center}
+.stats .val{font-size:22px}
+.cap{font-size:13px;color:var(--muted);margin:0}
+.dist-h{margin:14px 0 8px}
+.dist{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.dist li{display:grid;grid-template-columns:16px 1fr;gap:8px;align-items:center;font:600 12px var(--mono);color:var(--muted)}
+.dist b{display:block;min-width:max-content;background:var(--line);color:var(--text);padding:3px 7px;border-radius:2px;text-align:right;font-variant-numeric:tabular-nums}
+.dist li.me b{background:var(--up);color:var(--on-up)}
+.dist li.none{display:block;font:14px var(--sans)}
+.next{margin:0;text-align:center;font-size:14px;color:var(--muted)}
+.next b{display:block;margin-top:4px;font:800 26px var(--mono);letter-spacing:.04em;color:var(--text);font-variant-numeric:tabular-nums}
+#rActual{font-variant-numeric:tabular-nums}
+#rActual.bell{animation:bell .9s ease-out}
+#rActual.bell.win{--flash:var(--up)} #rActual.bell.lose{--flash:var(--down)}
+@keyframes bell{0%{color:var(--flash);text-shadow:0 0 14px var(--flash)}100%{color:var(--text);text-shadow:none}}
+.how{font-size:13.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px}
+.how p{margin:0 0 6px;max-width:65ch}
+.how a{color:var(--cyan)}
+.faq{margin-top:14px}
+.faq h2,.faq h3{color:var(--text);font-size:13.5px;margin:10px 0 2px}
+.faq h2{font:600 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0}
+/* Questions fold away under the footer; the text stays in the page for search engines. */
+.faq summary{display:flex;justify-content:space-between;align-items:center;min-height:44px;cursor:pointer;list-style:none;color:var(--muted)}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";font:600 18px var(--mono)} .faq[open] summary::after{content:"\2212"}
+.faq summary:hover h2,.faq summary:hover::after{color:var(--text)}
+.faq summary:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+@media (pointer:coarse){.keys{display:none} .chip{min-height:44px} #catSel{margin-block:-4px -14px}}
+@media (max-width:440px){
+  /* Phones keep the desktop's 2x2 facts and put the bid button beside the price, so the guesses stay in view. */
+  .quote-head{padding:12px 14px 10px}
+  .meta>div{padding:8px 14px}
+  form.order{flex-wrap:nowrap;padding:12px 14px}
+  .field{flex:1 1 auto;padding:0 10px}.field span{font-size:18px}.field input{font-size:20px;padding:10px 6px}
+  .buy{padding:0 14px;font-size:16px}
+  .log{padding:0 14px 12px;gap:5px}.log li{padding:7px 10px}.legend{padding:0 14px 12px}.range,.err{padding-inline:14px}
+  .log li{grid-template-columns:22px 9ch 1fr;}
+  .figs div{padding:8px 10px}.figs .val{font-size:16px}
+}
+
+/* visitor counter (odometer) */
+.visits{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;padding:12px 14px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font:600 12px/1 var(--mono);color:var(--muted);letter-spacing:.04em}
+.visits .vlbl{font:14px var(--sans);letter-spacing:0}
+.odo{display:inline-flex;gap:3px}
+.odo-d{display:inline-block;width:1.25em;height:1.5em;overflow:hidden;border-radius:4px;background:var(--inset);border:1px solid var(--line);font:800 20px/1.5em var(--mono);color:var(--text);text-align:center;box-shadow:inset 0 6px 8px -6px var(--odo-shade),inset 0 -6px 8px -6px var(--odo-shade)}
+.odo-s{display:block;white-space:pre;transition:transform 1.1s cubic-bezier(.2,.8,.2,1)}
+.visits .vtoday{color:var(--up-ink)}
+.visits.tick .odo-d{animation:odoflash 1.4s ease-out}
+@keyframes odoflash{0%{color:var(--up);border-color:var(--up)}100%{color:var(--text);border-color:var(--line)}}
+@media (prefers-reduced-motion:reduce){.odo-s{transition:none}.visits.tick .odo-d{animation:none}}

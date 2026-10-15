@@ -1,0 +1,11 @@
+// Separate Worker from the site: deploys from this folder only (Cloudflare Workers Builds, root directory "cron").
+{
+  "name": "inflationdle-cron",
+  "main": "index.js",
+  "compatibility_date": "2026-09-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": {"enabled": true},
+  // UTC. Keep in sync with JOBS in index.js.
+  "triggers": {"crons": ["10 12 * * *", "0 13 * * *", "5 13 * * *", "0 16 * * *", "30 22 * * *"]}
+}

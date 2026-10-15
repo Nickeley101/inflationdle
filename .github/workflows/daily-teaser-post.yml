@@ -1,0 +1,156 @@
+name: Daily teaser
+
+# Midday "spotlight" post (it replaced the puzzle teaser on 2026-10-06, which got little traction): one item people
+# care about, such as beer, gas or steak, with every year's price racing to today and a hook that asks for the
+# viewer's own year (promo/spotlight.html, picked by date in scripts/daily-video.mjs --spotlight). The items of the
+# live rounds are left out, so it never hints at today's answer.
+# The 10-second video goes to YouTube Shorts and Bluesky; X gets the frame with the full chart, because video on X
+# needs a chunked upload that post-to-x.mjs doesn't do yet.
+# 16:00 UTC is noon Eastern (11 AM in winter). The file keeps its name because the cron Worker dispatches it by name.
+on:
+  schedule:
+    # GitHub starts scheduled runs late or skips them on busy days, so later backup times retry.
+    # The "Skip if today's teaser is already out" step makes sure only the first one posts.
+    - cron: "0 16 * * *"
+    - cron: "17 17 * * *"
+    - cron: "37 18 * * *"
+    - cron: "7 20 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only build the video and card and check the keys; don't post"
+        type: boolean
+        default: true
+      scheduled:
+        description: "Started by the on-time timer (cron/): skip if today's post is already out"
+        type: boolean
+        default: false
+      post_to_x:
+        description: "Also post the still card to X (paid, about $0.015 a post)"
+        type: boolean
+        default: true
+      post_video:
+        description: "Also post the video to Bluesky and YouTube"
+        type: boolean
+        default: true
+  pull_request:
+    paths:
+      - "scripts/ci-install.sh"
+      - "scripts/daily-video.mjs"
+      - "scripts/spotlight-picks.mjs"
+      - "scripts/video-audio.mjs"
+      - "scripts/post-to-bluesky.mjs"
+      - "scripts/post-video-to-*.mjs"
+      - "scripts/save-to-drive.mjs"
+      - "promo/spotlight.html"
+      - ".github/workflows/daily-teaser-post.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: daily-teaser-post
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      DRY_RUN: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)) && '0' || '1' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Skip if today's teaser is already out
+        # A real post leaves a "posted-teaser-YYYY-MM-DD" artifact (below); backup runs stop here when it exists.
+        id: done
+        if: github.event_name == 'schedule' || inputs.scheduled
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # GitHub sometimes starts a backup cron hours late, past midnight UTC, when it would tease a round hours early.
+          # Before 16:00 UTC nothing posts; the next on-time run handles the new day.
+          if [ "$(date -u +%-H)" -lt 16 ]; then
+            echo "posted=yes" >> "$GITHUB_OUTPUT"; echo "Too early in the UTC day for the teaser; nothing to do."; exit 0
+          fi
+          posted=$(bash scripts/already-posted.sh daily-teaser-post.yml "posted-teaser-$(date -u +%F)")
+          echo "posted=$posted" >> "$GITHUB_OUTPUT"
+          [ "$posted" = yes ] && echo "Today's teaser already went out; nothing to do." || true
+      - name: Install Playwright Chromium and ffmpeg
+        if: steps.done.outputs.posted != 'yes'
+        # Retries with time limits, so a stalled package mirror can't eat the whole run (see the script).
+        timeout-minutes: 25
+        run: bash scripts/ci-install.sh --ffmpeg
+      - name: Render today's spotlight video and X card
+        if: steps.done.outputs.posted != 'yes'
+        # Pull requests build a fixed day so the run is repeatable.
+        run: node scripts/daily-video.mjs --spotlight ${{ github.event_name == 'pull_request' && '--day 5' || '' }}
+      - name: Show the TikTok caption on the run page
+        if: ${{ steps.done.outputs.posted != 'yes' && hashFiles('out/video.json') != '' }}
+        run: |
+          node -e 'const m=require("./out/video.json");console.log("### Caption for TikTok and Reels\n\n```\n"+m.caption.replace("Link in bio.","Play at inflationdle.com")+"\n```")' >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep the card and video as a run artifact
+        if: steps.done.outputs.posted != 'yes'
+        # A full artifact store must never stop or repeat a post (see scripts/already-posted.sh).
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: daily-teaser
+          path: |
+            out/card.png
+            out/post.txt
+            out/video.mp4
+            out/video-cover.png
+            out/video.json
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Post the video to Bluesky
+        if: ${{ steps.done.outputs.posted != 'yes' && (github.event_name != 'workflow_dispatch' || inputs.post_video) }}
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+        run: node scripts/post-video-to-bluesky.mjs
+      - name: Upload the video to YouTube Shorts
+        if: ${{ !cancelled() && steps.done.outputs.posted != 'yes' && (github.event_name != 'workflow_dispatch' || inputs.post_video) }}
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+        run: node scripts/post-video-to-youtube.mjs
+      - name: Post the still card to X
+        # Runs even if Bluesky failed, so one network being down doesn't skip the other.
+        if: ${{ !cancelled() && steps.done.outputs.posted != 'yes' && (github.event_name != 'workflow_dispatch' || inputs.post_to_x) }}
+        env:
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
+        run: node scripts/post-to-x.mjs
+      - name: Save the video and caption to Google Drive
+        # For posting to TikTok from a phone. A dry run until the GDRIVE_REFRESH_TOKEN secret exists.
+        if: ${{ !cancelled() && steps.done.outputs.posted != 'yes' }}
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+        run: node scripts/save-to-drive.mjs
+      # The video scripts write out/posted-video and post-to-x.mjs writes out/posted after a real post.
+      - name: Remember that today's teaser went out
+        id: day
+        if: ${{ !cancelled() && (hashFiles('out/posted-video') != '' || hashFiles('out/posted') != '') }}
+        run: echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+      - name: Upload the posted marker
+        if: ${{ !cancelled() && (hashFiles('out/posted-video') != '' || hashFiles('out/posted') != '') }}
+        # A full artifact store must never stop or repeat a post (see scripts/already-posted.sh).
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: posted-teaser-${{ steps.day.outputs.date }}
+          path: |
+            out/posted-video
+            out/posted
+          if-no-files-found: ignore
+          retention-days: 2

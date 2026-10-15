@@ -1,0 +1,17 @@
+{
+  "name": "inflationdle-tests",
+  "private": true,
+  "type": "module",
+  "description": "Automated checks for inflationdle.com: game flows in real browsers, accessibility, and security.",
+  "scripts": {
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "node --test --disable-warning=ExperimentalWarning \"unit/*.test.mjs\"",
+    "test:e2e": "playwright test",
+    "test:live": "node --test --disable-warning=ExperimentalWarning \"live/*.test.mjs\"",
+    "serve": "node --disable-warning=ExperimentalWarning server.mjs"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.10.2",
+    "@playwright/test": "1.56.1"
+  }
+}

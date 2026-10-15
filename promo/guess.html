@@ -1,0 +1,181 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;800&family=JetBrains+Mono:wght@400;600;800&family=IBM+Plex+Sans:wght@400;500;600&display=block">
+<script src="series.js"></script>
+<style>
+:root{--bg:#0a0e13;--panel:#11171f;--panel2:#161e28;--line:#233040;--text:#dbe4ee;--muted:#7c8b9d;--up:#1fd67f;--down:#ff4d5e;--warm:#f5b83d;--cyan:#4cc9f0;
+--mono:"JetBrains Mono",ui-monospace,monospace;--disp:"Barlow Condensed","Arial Narrow",Impact,sans-serif;--sans:"IBM Plex Sans",system-ui,sans-serif}
+*{box-sizing:border-box;margin:0}
+html,body{width:1080px;height:1920px;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--sans)}
+#stage{position:relative;width:1080px;height:1920px;overflow:hidden;background:var(--bg)}
+.tick{position:absolute;top:120px;left:0;right:0;height:64px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#0d131a;overflow:hidden;white-space:nowrap;font:600 30px/64px var(--mono);color:var(--muted)}
+.tick span{display:inline-block;padding:0 28px}.tick .u{color:var(--up)}.tick .d{color:var(--down)}
+.brand{position:absolute;top:230px;left:0;right:0;text-align:center;font:800 64px var(--disp);letter-spacing:.02em;text-transform:uppercase}
+.brand em,.end .logo em{font-style:normal;color:var(--up);text-shadow:0 0 36px rgba(31,214,127,.5)}
+.brand .no{margin-left:22px;font:700 44px var(--mono);color:var(--muted);letter-spacing:0;vertical-align:.12em}
+.scene{position:absolute;left:110px;right:110px;opacity:0}
+.flash{position:absolute;inset:0;background:radial-gradient(900px 700px at 50% 32%,rgba(31,214,127,.28),transparent 70%);opacity:0;pointer-events:none}
+.q2 p b{color:var(--warm);font-weight:600}
+.q{top:470px;text-align:center;transform-origin:50% 0}
+.q h1{font:800 132px/1.0 var(--disp);text-transform:uppercase}
+.q h1 em{font-style:normal;color:var(--cyan);text-shadow:0 0 40px rgba(76,201,240,.45)}
+.q p{margin-top:34px;font:500 40px var(--sans);color:var(--muted)}
+.game{top:960px}
+.inp{height:130px;border:3px solid var(--line);border-radius:22px;background:var(--panel);display:flex;align-items:center;padding:0 40px;font:800 70px var(--mono)}
+.inp .cur{display:inline-block;width:6px;height:70px;background:var(--cyan);margin-left:6px}
+.row{margin-top:22px;height:112px;border-radius:18px;display:flex;align-items:center;justify-content:space-between;padding:0 40px;font:800 58px var(--mono);opacity:0}
+.row.lo{background:rgba(255,77,94,.12);color:var(--down);border:2px solid rgba(255,77,94,.5)}
+.row.hi{background:rgba(31,214,127,.12);color:var(--up);border:2px solid rgba(31,214,127,.5)}
+.row b{font:800 50px var(--disp);letter-spacing:.06em}
+.cd{position:absolute;top:1500px;left:0;right:0;text-align:center;opacity:0}
+.cd .l{font:600 40px var(--sans);color:var(--muted)}
+.cd .n{font:800 150px/1 var(--disp);color:var(--warm);margin-top:6px}
+.rev{top:430px;text-align:center}
+.rev .k{margin-top:18px;font:500 40px var(--sans);color:var(--muted)}
+.rev .big{font:800 300px/1 var(--disp);color:var(--up);margin-top:10px;text-shadow:0 0 60px rgba(31,214,127,.35)}
+.chart{position:absolute;left:100px;right:100px;top:880px;height:560px;opacity:0}
+.chart svg{width:100%;height:100%;overflow:visible}
+.facts{position:absolute;left:90px;right:90px;top:1540px;text-align:center;opacity:0}
+.facts .a{font:800 64px var(--disp);text-transform:uppercase}
+.facts .a #fnow{color:var(--up)}
+.facts .b{margin-top:14px;font:500 38px var(--sans);color:var(--muted)}
+.end{top:1790px;text-align:center}
+.end h2{font:800 118px/1.02 var(--disp);text-transform:uppercase}
+.end h2 em{font-style:normal;color:var(--warm)}
+.end .bio{font:700 46px var(--mono);color:var(--cyan)}
+.src{position:absolute;top:1462px;left:0;right:0;text-align:center;font:400 26px var(--mono);color:#56657a;opacity:0}
+</style></head>
+<body><div id="stage">
+<div class="tick" id="tick"></div>
+<div class="flash" id="flash"></div>
+<div class="brand" id="brand">Inflation<em>dle</em><span class="no" id="no"></span></div>
+
+<div class="scene q" id="q">
+  <h1>What did <span id="item"></span> cost in <em id="qy"></em>?</h1>
+  <p id="qsub"></p>
+</div>
+
+<div class="scene game" id="game">
+  <div class="inp"><span id="typed"></span><span class="cur" id="cur"></span></div>
+  <div class="row lo" id="r1"><span id="g1"></span><b>▼ LOWER</b></div>
+  <div class="row hi" id="r2"><span id="g2"></span><b>▲ HIGHER</b></div>
+</div>
+<div class="cd" id="cd"><div class="l">Comment your guess</div><div class="n" id="cdn">3</div></div>
+
+<div class="scene rev" id="rev">
+  <div class="big" id="big"></div>
+  <div class="k" id="rk"></div>
+</div>
+<div class="chart" id="chart"><svg id="svg" viewBox="0 0 940 560"></svg></div>
+<div class="facts" id="facts">
+  <div class="a"><span id="fl"></span> <span id="fnow"></span> (<b id="fpct"></b>)</div>
+  <div class="b" id="fb"></div>
+</div>
+
+<div class="scene q q2" id="q2">
+  <h1>What did <span id="item2"></span> cost in <em id="qy2"></em>?</h1>
+  <p id="qsub2"></p>
+</div>
+<div class="scene end" id="end">
+  <div class="bio">inflationdle.com</div>
+</div>
+<div class="src" id="src">Source: BLS average prices &amp; CPI-U, via FRED</div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+const ease=x=>{x=clamp(x);return 1-Math.pow(1-x,3)};
+const win=(t,a,b,f=.35)=>Math.min(ease((t-a)/f),ease((b-t)/f)); // fade in at a, out at b
+// ---- The round: ?day=N (from data/schedule.json) or ?sym=EGGS&year=1992 ----
+const Q=new URLSearchParams(location.search);
+let sym=Q.get("sym"), year=+Q.get("year"); const DAY=+Q.get("day")||0;
+if(DAY){const k=SCHED.days[DAY-1]; if(!k) throw new Error("no round for day "+DAY); [sym,year]=k.split(":"); year=+year}
+const S=SER[sym]; if(!S) throw new Error("unknown series "+sym);
+const PT=S.pts.find(p=>p[0]===year); if(!PT) throw new Error(`${sym} has no ${year} price`);
+const ANS=PT[1], LAST=S.pts[S.pts.length-1];
+// Mirrors market() and fmt() in src/game.js.
+const market=s=>/U\.S\./.test(s.loc)?s.loc:/^(South|West|Northeast|Midwest) /.test(s.loc)?"U.S. "+s.loc:s.loc+", US";
+const fmt=p=>"$"+(p<1?p.toFixed(3).replace(/0$/,""):p.toLocaleString("en-US",{minimumFractionDigits:p>=1000?0:2,maximumFractionDigits:p>=1000?0:2}));
+const nice=p=>p>=100?Math.round(p/10)*10:p>=10?Math.round(p):p>=.2?Math.round(p*20)/20:Math.round(p*200)/200; // wrong guesses look typed
+const an=n=>(/^[AEIOU]|^(iP|X)/i.test(n)&&!/^U[a-z]/.test(n)?"an ":"a ")+n;
+const NAMES={HOUSE:"a new house",STAMP:"a first-class stamp",SUBWAY:"a New York subway ride",EGGS:"a dozen eggs",GAS:"a gallon of gas",POWER:"a kilowatt-hour of power",MCD:"a Big Mac"};
+const base=sym.split(".")[0];
+const ITEM=PT[2]?an(PT[2]):NAMES[base]||(S.cat==="Subscriptions"?S.name:S.name.split(",")[0].toLowerCase());
+const HAS_NEXT=()=>$("item2").textContent!=="";
+$("item").textContent=ITEM; $("qy").textContent=year; if(DAY) $("no").textContent="No. "+DAY;
+// The video ends on the next puzzle's question in the same spot as the opening one, so a replay loops smoothly.
+// That round is live when this posts, so only its question shows: never its price.
+const itemOf=(k,y)=>{const s=SER[k], p=s.pts.find(p=>p[0]===y); return p[2]?an(p[2]):NAMES[k.split(".")[0]]||(s.cat==="Subscriptions"?s.name:s.name.split(",")[0].toLowerCase())};
+const NEXT=DAY&&SCHED.days[DAY]?SCHED.days[DAY].split(":"):null;
+if(NEXT&&SER[NEXT[0]]?.pts.some(p=>p[0]===+NEXT[1])){$("item2").textContent=itemOf(NEXT[0],+NEXT[1]); $("qy2").textContent=NEXT[1];
+  $("qsub2").innerHTML=`<b>Next up: No. ${DAY+1}</b> · play at inflationdle.com`}
+$("qsub").textContent=S.unit.includes(market(S))?S.unit:`${market(S)} · ${S.unit}`;
+const G1=fmt(nice(ANS*1.55)), G2=fmt(nice(ANS*0.8)); $("g1").textContent=G1; $("g2").textContent=G2;
+$("big").style.fontSize=Math.min(300,Math.round(840/(fmt(ANS).length*.5)))+"px";
+$("src").textContent="Prices: "+(S.jan?"BLS average prices via FRED":S.src?S.src.replace(/ \(.*\)$/,""):"published U.S. prices")+" · Inflation: CPI-U";
+$("rk").textContent=`${ITEM.replace(/^an? /,"").replace(/^(?!i[A-Z])\w/,c=>c.toUpperCase())}, ${PT[3]||(S.jan?"January ":"")+year}`; $("big").textContent=fmt(ANS);
+// CPI: January of the round's year to the latest month (null months take their neighbours' average).
+const cpiAt=(y,m)=>{const i=(y-1975)*12+m-1, v=CPI.v; return v[i]??(v[i-1]+v[i+1])/2};
+const lastI=CPI.v.length-1, infl=(CPI.v[lastI]/cpiAt(year,1)-1)*100, chg=(LAST[1]/ANS-1)*100, gap=chg-infl;
+const since=`since ${year}`;
+$("fl").textContent=LAST[2]?LAST[2]+":":"Today:"; $("fnow").textContent=fmt(LAST[1]);
+$("fpct").textContent=(chg>=0?"+":"")+chg.toFixed(0)+"%"; $("fpct").style.color=chg>=0?"var(--up)":"var(--down)";
+const same=!LAST[2]||LAST[2]===PT[2]; // a newer product isn't the same thing, so skip the verdict
+$("fb").textContent=`Overall prices rose ${infl.toFixed(0)}% ${since}.`+(!same?"":" "+(chg<0?"This got cheaper.":Math.abs(gap)<5?"This went up about as much.":gap>0?"This went up faster.":"This went up less."));
+// ticker: every U.S.-average series with a price that year
+const T=[[`SINCE ${year}:`,"","m"]];
+for(const [k,s] of Object.entries(SER)){ if(!/U\.S\. City/.test(s.loc)) continue; const p=s.pts.find(p=>p[0]===year); if(!p) continue;
+  const c=(s.pts[s.pts.length-1][1]/p[1]-1)*100; T.push([k,(c>=0?"+":"")+c.toFixed(0)+"%",c>=0?"u":"d"]) }
+T.push(["ALL PRICES (CPI)","+"+infl.toFixed(0)+"%","m"]);
+$("tick").innerHTML='<div id="tk">'+[...T,...T,...T].map(([s,v,c])=>`<span>${s} <span class="${c}">${v}</span></span>`).join("")+'</div>';
+// chart
+const P=S.pts, W=940,H=560, x0=Math.min(P[0][0],year), x1=LAST[0]+(LAST[0]===Math.floor(LAST[0])?0:0), YTOP=Math.max(...P.map(p=>p[1]))*1.12;
+const step=[.01,.02,.05,.1,.2,.5,1,2,5,10,20,50,100,200,500,1000,2000,5000,10000,20000].find(v=>YTOP/v<=5);
+const PAD=130, X=x=>PAD+(x-x0)/Math.max(1,x1-x0)*(W-PAD), // left gutter keeps the price labels off the line
+  Y=y=>H-40-(y/YTOP)*(H-80);
+let d="";P.forEach(([x,y],i)=>d+=(i?"L":"M")+X(x).toFixed(1)+" "+Y(y).toFixed(1));
+const decade=[];for(let y=Math.ceil(x0/10)*10;y<=x1;y+=10)decade.push(y);
+const gl=[];for(let v=step;v<YTOP;v+=step)gl.push(+v.toFixed(3));
+$("svg").innerHTML=`
+ ${gl.map(v=>`<line x1="${PAD}" x2="${W}" y1="${Y(v)}" y2="${Y(v)}" stroke="#233040" stroke-width="2"/><text x="${PAD-16}" y="${Y(v)+10}" fill="#56657a" font-family="JetBrains Mono, monospace" font-size="30" text-anchor="end">${fmt(v)}</text>`).join("")}
+ ${decade.map(v=>`<text x="${X(v)}" y="${H}" fill="#56657a" font-family="JetBrains Mono, monospace" font-size="30" text-anchor="middle">${v}</text>`).join("")}
+ <path id="ln" d="${d}" fill="none" stroke="#4cc9f0" stroke-width="7" style="filter:drop-shadow(0 0 10px rgba(76,201,240,.5))" stroke-linejoin="round" stroke-linecap="round"/>
+ <circle id="d92" cx="${X(year)}" cy="${Y(ANS)}" r="16" fill="#f5b83d"/>
+ <circle id="dnow" cx="${X(LAST[0])}" cy="${Y(LAST[1])}" r="16" fill="#4cc9f0"/>`;
+const ln=$("ln"), len=ln.getTotalLength(); ln.style.strokeDasharray=len;
+// Timeline (15 s, matched by soundtrack() in scripts/video-audio.mjs): question from the first frame, two wrong
+// guesses, a 3-2-1 "comment your guess" countdown, the price ticking up to the answer, the chart, then the next question.
+const TYPE=.8; // each wrong guess types out over 0.8 s
+function typed(t,a,s){const n=clamp(Math.floor((t-a)/(TYPE/s.length)),0,s.length);return s.slice(0,n)}
+window.render=function(t){
+  const loop=HAS_NEXT();
+  $("tk").style.transform=`translateX(${-t*90}px)`;
+  $("brand").style.opacity=t<12.6?1-ease((t-1.5)/.3):ease((t-12.6)/.4);
+  if(DAY) $("no").textContent="No. "+(loop&&t>=12.6?DAY+1:DAY);
+  $("q").style.opacity=t<7.5?1:1-ease((t-7.5)/.3);
+  const m=ease((t-1.5)/.5); // shrink the question up to make room for the guesses
+  $("q").style.transform=`translateY(${-m*170}px) scale(${1-m*.32})`;
+  // game
+  $("game").style.opacity=win(t,1.6,7.5,.3);
+  let s=""; if(t>=2&&t<2.8)s=typed(t,2,G1); else if(t>=3.3&&t<4.1)s=typed(t,3.3,G2);
+  $("typed").textContent=s; $("cur").style.opacity=(Math.floor(t*2.5)%2)?1:0;
+  $("r1").style.opacity=ease((t-2.8)/.2); $("r1").style.transform=`scale(${1+.08*(1-ease((t-2.8)/.3))})`;
+  $("r2").style.opacity=ease((t-4.1)/.2); $("r2").style.transform=`scale(${1+.08*(1-ease((t-4.1)/.3))})`;
+  $("cd").style.opacity=win(t,4.5,7.5,.3); const n=3-Math.floor(clamp(t-4.6,0,2.99)); $("cdn").textContent=n;
+  $("cdn").style.transform=`scale(${1+.25*(1-ease(((t-4.6)%1)/.3))})`;
+  // reveal: the price ticks up like a quote board for 0.8 s, then lands with a green flash
+  const r=win(t,7.5,12.4,.2); $("rev").style.opacity=r;
+  const roll=clamp((t-7.5)/.8); $("big").textContent=fmt(roll<1?ANS*(1-Math.pow(1-roll,2)):ANS);
+  $("big").style.transform=`scale(${1+.18*(1-ease((t-8.3)/.4))*(t>=8.3?1:0)})`;
+  $("flash").style.opacity=t<8.3?0:Math.exp(-(t-8.3)/.35);
+  $("chart").style.opacity=win(t,8.6,12.4,.3);
+  ln.style.strokeDashoffset=len*(1-ease((t-8.8)/1.8));
+  $("d92").style.opacity=ease((t-8.9)/.3); $("dnow").style.opacity=ease((t-10.6)/.3);
+  $("facts").style.opacity=win(t,10.8,12.4,.3);
+  $("src").style.opacity=win(t,8.4,12.4,.3);
+  // end: the next puzzle's question where this one started, or the address when there's no next round
+  $("q2").style.opacity=loop?ease((t-12.7)/.4):0;
+  $("end").style.opacity=loop?0:win(t,12.7,99,.4);
+};
+render(0);
+</script></body></html>

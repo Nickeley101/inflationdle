@@ -1,0 +1,101 @@
+name: Daily social posts
+
+# The same answer card as the daily X post, posted to Bluesky and Mastodon (both free APIs).
+# Each network stays a dry run until its repo secrets exist, so adding one account doesn't need the other.
+# 13:05 UTC is just after the X post; like it, it reveals yesterday's answer and only teases today's.
+on:
+  schedule:
+    # GitHub starts scheduled runs late or skips them on busy days, so later backup times retry.
+    # The "Skip if today's card is already out" step makes sure only the first one posts.
+    - cron: "5 13 * * *"
+    - cron: "22 14 * * *"
+    - cron: "42 16 * * *"
+    - cron: "12 19 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only build the card and check the keys; don't post"
+        type: boolean
+        default: true
+      scheduled:
+        description: "Started by the on-time timer (cron/): skip if today's post is already out"
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - "scripts/ci-install.sh"
+      - "scripts/daily-card.mjs"
+      - "scripts/post-to-bluesky.mjs"
+      - "scripts/post-to-mastodon.mjs"
+      - "data/prices.json"
+      - "data/schedule.json"
+      - ".github/workflows/daily-social-post.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: daily-social-post
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      DRY_RUN: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)) && '0' || '1' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Skip if today's card is already out
+        # A real post leaves a "posted-bluesky-card-YYYY-MM-DD" artifact (below); backup runs stop here when it exists.
+        id: done
+        if: github.event_name == 'schedule' || inputs.scheduled
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # GitHub sometimes starts a backup cron hours late, past midnight UTC, when its answer would be for a round still being played.
+          # Before 12:00 UTC nothing posts; the next on-time run handles the new day.
+          if [ "$(date -u +%-H)" -lt 12 ]; then
+            echo "posted=yes" >> "$GITHUB_OUTPUT"; echo "Too early in the UTC day for the card; nothing to do."; exit 0
+          fi
+          posted=$(bash scripts/already-posted.sh daily-social-post.yml "posted-bluesky-card-$(date -u +%F)")
+          echo "posted=$posted" >> "$GITHUB_OUTPUT"
+          [ "$posted" = yes ] && echo "Today's card already went out; nothing to do." || true
+      - name: Install Playwright Chromium
+        if: steps.done.outputs.posted != 'yes'
+        # Retries with time limits, so a stalled package mirror can't eat the whole run (see the script).
+        timeout-minutes: 25
+        run: bash scripts/ci-install.sh
+      - name: Build today's card
+        if: steps.done.outputs.posted != 'yes'
+        run: node scripts/daily-card.mjs ${{ github.event_name == 'pull_request' && '--day 5' || '' }}
+      - name: Post to Bluesky
+        if: steps.done.outputs.posted != 'yes'
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+        run: node scripts/post-to-bluesky.mjs
+      - name: Post to Mastodon
+        # Runs even if Bluesky failed, so one network being down doesn't skip the other.
+        if: ${{ !cancelled() && steps.done.outputs.posted != 'yes' }}
+        env:
+          MASTODON_URL: ${{ secrets.MASTODON_URL }}
+          MASTODON_TOKEN: ${{ secrets.MASTODON_TOKEN }}
+        run: node scripts/post-to-mastodon.mjs
+      - name: Remember that today's card went out
+        id: day
+        if: ${{ !cancelled() && hashFiles('out/posted-bluesky') != '' }}
+        run: echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+      - name: Upload the posted marker
+        if: ${{ !cancelled() && hashFiles('out/posted-bluesky') != '' }}
+        # A full artifact store must never stop or repeat a post (see scripts/already-posted.sh).
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: posted-bluesky-card-${{ steps.day.outputs.date }}
+          path: out/posted-bluesky
+          retention-days: 2

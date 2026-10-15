@@ -1,0 +1,17 @@
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'none'
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+# Revalidate the page, code and data on every load, so a fix reaches in-app browsers (Messenger, Instagram) right away
+# instead of a stale cached copy. Unchanged files still come back as a cheap 304.
+/
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache
+/src/*
+  Cache-Control: no-cache
+/data/*
+  Cache-Control: no-cache

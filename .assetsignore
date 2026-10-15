@@ -1,0 +1,16 @@
+# Files in the repo that should not be published on inflationdle.com
+docs/
+scripts/
+README.md
+.gitignore
+.github/
+out/
+promo/
+worker/
+wrangler.jsonc
+.wrangler/
+node_modules/
+.git/
+cron/
+.claude/
+tests/

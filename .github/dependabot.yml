@@ -1,0 +1,18 @@
+# One monthly pull request per ecosystem (GitHub Actions, and the test tools in /tests), so updates arrive as
+# two PRs instead of one per package. Security fixes still arrive on their own as soon as they're published.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+  - package-ecosystem: npm
+    directory: /tests
+    schedule:
+      interval: monthly
+    groups:
+      test-tools:
+        patterns: ["*"]

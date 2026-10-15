@@ -1,0 +1,48 @@
+name: Render banners
+
+# Profile banners need the site's Google Fonts, which the build containers can't always reach, so they render here.
+# A pull request that changes one of these templates gets the PNGs committed back to its branch
+# (promo/banners/, plus og.png at the repo root).
+on:
+  pull_request:
+    paths:
+      - "promo/header.html"
+      - "promo/youtube-banner.html"
+      - "promo/og.html"
+      - "scripts/render-banners.mjs"
+      - ".github/workflows/render-banners.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm i --no-save playwright && npx playwright install --with-deps chromium
+      - name: Render
+        run: |
+          (cd promo && python3 -m http.server 8124 >/dev/null 2>&1 &)
+          sleep 1
+          node scripts/render-banners.mjs
+      - uses: actions/upload-artifact@v7
+        with:
+          name: banners
+          path: |
+            promo/banners/*.png
+            og.png
+      - name: Commit the PNGs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+          git add promo/banners og.png
+          git diff --cached --quiet || { git commit -m "Render banners"; git push; }

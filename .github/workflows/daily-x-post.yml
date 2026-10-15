@@ -1,0 +1,109 @@
+name: Daily X post
+
+# Every morning, post yesterday's answer card plus today's teaser to X.
+# 13:00 UTC is 9 AM Eastern (8 AM during winter), after every U.S. time zone has rolled over to the new puzzle.
+on:
+  schedule:
+    # GitHub starts scheduled runs late or skips them on busy days, so later backup times retry.
+    # The "Skip if today's post is already out" step makes sure only the first one posts.
+    - cron: "0 13 * * *"
+    - cron: "17 14 * * *"
+    - cron: "37 16 * * *"
+    - cron: "7 19 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only build the card; don't post"
+        type: boolean
+        default: true
+      scheduled:
+        description: "Started by the on-time timer (cron/): skip if today's post is already out"
+        type: boolean
+        default: false
+  # Pull requests that touch the poster or the data get a dry run, so a broken card shows up before merging.
+  pull_request:
+    paths:
+      - "scripts/ci-install.sh"
+      - "scripts/daily-card.mjs"
+      - "scripts/post-to-x.mjs"
+      - "data/prices.json"
+      - "data/schedule.json"
+      - "scripts/schedule.mjs"
+      - "data/picks.json"
+      - ".github/workflows/daily-x-post.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: daily-x-post
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Check the daily schedule matches the price data
+        # A data change must come with a re-planned data/schedule.json (node scripts/schedule.mjs).
+        if: github.event_name == 'pull_request'
+        run: node scripts/schedule.mjs --check
+      - name: Skip if today's post is already out
+        # A real post leaves a "posted-YYYY-MM-DD" artifact (below); backup runs stop here when it exists.
+        id: done
+        if: github.event_name == 'schedule' || inputs.scheduled
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # A backup GitHub starts after midnight UTC would take "yesterday" as a round that is still live
+        # until 12:00 UTC, so anything that late is skipped instead of posting a live answer.
+        run: |
+          if [ "$(date -u +%-H)" -lt 12 ]; then echo "posted=yes" >> "$GITHUB_OUTPUT"; echo "Too late for yesterday's post; skipping."; exit 0; fi
+          posted=$(bash scripts/already-posted.sh daily-x-post.yml "posted-$(date -u +%F)")
+          echo "posted=$posted" >> "$GITHUB_OUTPUT"
+          [ "$posted" = yes ] && echo "Today's post already went out; nothing to do." || true
+      - name: Install Playwright Chromium
+        if: steps.done.outputs.posted != 'yes'
+        # Retries with time limits, so a stalled package mirror can't eat the whole run (see the script).
+        timeout-minutes: 25
+        run: bash scripts/ci-install.sh
+      - name: Build today's card
+        if: steps.done.outputs.posted != 'yes'
+        # Pull requests build a fixed day so the card is always exercised, even on puzzle day 1.
+        run: node scripts/daily-card.mjs ${{ github.event_name == 'pull_request' && '--day 5' || '' }}
+      - name: Keep the card as a run artifact
+        if: steps.done.outputs.posted != 'yes'
+        # A full artifact store must never stop or repeat a post (see scripts/already-posted.sh).
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: daily-card
+          path: out/
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Post to X
+        if: steps.done.outputs.posted != 'yes'
+        env:
+          DRY_RUN: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)) && '0' || '1' }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
+        run: node scripts/post-to-x.mjs
+      - name: Remember that today's post went out
+        id: day
+        if: hashFiles('out/posted') != ''
+        run: echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+      - name: Upload the posted marker
+        if: hashFiles('out/posted') != ''
+        # A full artifact store must never stop or repeat a post (see scripts/already-posted.sh).
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: posted-${{ steps.day.outputs.date }}
+          path: out/posted
+          retention-days: 2

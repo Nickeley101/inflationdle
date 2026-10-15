@@ -1,0 +1,100 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;800&family=JetBrains+Mono:wght@400;600;800&family=IBM+Plex+Sans:wght@400;500;600&display=block">
+<script src="series.js"></script>
+<style>
+:root{--bg:#0a0e13;--panel:#11171f;--panel2:#161e28;--line:#233040;--text:#dbe4ee;--muted:#7c8b9d;--up:#1fd67f;--down:#ff4d5e;--warm:#f5b83d;--cyan:#4cc9f0;
+--mono:"JetBrains Mono",ui-monospace,monospace;--disp:"Barlow Condensed","Arial Narrow",Impact,sans-serif;--sans:"IBM Plex Sans",system-ui,sans-serif}
+*{box-sizing:border-box;margin:0}
+html,body{width:1080px;height:1920px;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--sans)}
+#stage{position:relative;width:1080px;height:1920px;overflow:hidden;background:var(--bg)}
+.tick{position:absolute;top:120px;left:0;right:0;height:64px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#0d131a;overflow:hidden;white-space:nowrap;font:600 30px/64px var(--mono);color:var(--muted)}
+.tick span{display:inline-block;padding:0 28px}.tick .u{color:var(--up)}.tick .d{color:var(--down)}
+.brand{position:absolute;top:230px;left:0;right:0;text-align:center;font:800 64px var(--disp);letter-spacing:.02em;text-transform:uppercase}
+.brand em,.end .logo em{font-style:normal;color:var(--up);text-shadow:0 0 36px rgba(31,214,127,.5)}
+.scene{position:absolute;left:110px;right:110px;opacity:0}
+.q{top:470px;text-align:center;transform-origin:50% 0}
+.q h1{font:800 132px/1.0 var(--disp);text-transform:uppercase}
+.q h1 em{font-style:normal;color:var(--cyan);text-shadow:0 0 40px rgba(76,201,240,.45)}
+.q p{margin-top:34px;font:500 40px var(--sans);color:var(--muted)}
+.game{top:960px}
+.inp{height:130px;border:3px solid var(--warm);border-radius:22px;background:var(--panel);display:flex;align-items:center;padding:0 40px;font:800 70px var(--mono);color:var(--warm);letter-spacing:.08em}
+.inp .cur{display:inline-block;width:6px;height:70px;background:var(--cyan);margin-left:14px}
+.slots{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:30px}
+.slot{height:104px;border:2px dashed var(--line);border-radius:18px;display:flex;align-items:center;padding:0 32px;font:600 40px var(--mono);color:#3a4a5c;opacity:0}
+.cta{position:absolute;top:1560px;left:0;right:0;text-align:center;opacity:0}
+.cta .a{font:600 52px var(--sans)}
+.cta .b{margin-top:14px;font:500 40px var(--sans);color:var(--muted)}
+.end{top:520px;text-align:center}
+.end h2{font:800 118px/1.02 var(--disp);text-transform:uppercase}
+.end h2 em{font-style:normal;color:var(--warm)}
+.end .logo{margin-top:120px;font:800 110px var(--disp);letter-spacing:.02em;text-transform:uppercase}
+.end .s{margin-top:10px;font:500 42px var(--sans);color:var(--muted)}
+.end .bio{margin-top:40px;font:700 46px var(--mono);color:var(--cyan)}
+</style></head>
+<body><div id="stage">
+<div class="tick" id="tick"></div>
+<div class="brand" id="brand">Inflation<em>dle</em></div>
+
+<div class="scene q" id="q">
+  <h1>What did <span id="item"></span> cost in <em id="qy"></em>?</h1>
+  <p id="qsub"></p>
+</div>
+
+<div class="scene game" id="game">
+  <div class="inp"><span>$ ? ? ?</span><span class="cur" id="cur"></span></div>
+  <div class="slots"><div class="slot" id="s1">Guess 1</div><div class="slot" id="s2">Guess 2</div><div class="slot" id="s3">Guess 3</div><div class="slot" id="s4">Guess 4</div><div class="slot" id="s5">Guess 5</div><div class="slot" id="s6">Guess 6</div></div>
+</div>
+<div class="cta" id="cta"><div class="a">Comment your guess</div><div class="b" id="ctab">Answer tomorrow</div></div>
+
+<div class="scene end" id="end">
+  <h2>Six guesses. Get within <em>5%</em>.</h2>
+  <div class="logo">Inflation<em>dle</em></div>
+  <div class="s">A new price to guess every day</div>
+  <div class="bio">inflationdle.com</div>
+</div>
+</div>
+<script>
+// Teaser for a live puzzle: it never shows or hints at the price (no wrong guesses, no chart, no ticker entry for this item).
+const $=id=>document.getElementById(id);
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+const ease=x=>{x=clamp(x);return 1-Math.pow(1-x,3)};
+const win=(t,a,b,f=.35)=>Math.min(ease((t-a)/f),ease((b-t)/f));
+// ---- The round: ?day=N (from data/schedule.json) or ?sym=EGGS&year=1992 ----
+const Q=new URLSearchParams(location.search);
+let sym=Q.get("sym"), year=+Q.get("year");
+if(Q.get("day")){const k=SCHED.days[+Q.get("day")-1]; if(!k) throw new Error("no round for day "+Q.get("day")); [sym,year]=k.split(":"); year=+year}
+const S=SER[sym]; if(!S) throw new Error("unknown series "+sym);
+const PT=S.pts.find(p=>p[0]===year); if(!PT) throw new Error(`${sym} has no ${year} price`);
+// Mirrors market() in src/game.js and ITEM in guess.html.
+const market=s=>/U\.S\./.test(s.loc)?s.loc:/^(South|West|Northeast|Midwest) /.test(s.loc)?"U.S. "+s.loc:s.loc+", US";
+const an=n=>(/^[AEIOU]|^(iP|X)/i.test(n)&&!/^U[a-z]/.test(n)?"an ":"a ")+n;
+const NAMES={HOUSE:"a new house",STAMP:"a first-class stamp",SUBWAY:"a New York subway ride",EGGS:"a dozen eggs",GAS:"a gallon of gas",POWER:"a kilowatt-hour of power",MCD:"a Big Mac"};
+const base=sym.split(".")[0];
+const ITEM=PT[2]?an(PT[2]):NAMES[base]||(S.cat==="Subscriptions"?S.name:S.name.split(",")[0].toLowerCase());
+$("item").textContent=ITEM; $("qy").textContent=year;
+// Some units already name the market ("one burger, U.S. price"), so don't say it twice.
+$("qsub").textContent=[Q.get("day")?"No. "+Q.get("day"):"",S.unit.includes(market(S))?"":market(S),S.unit].filter(Boolean).join(" · ");
+// Ticker: how much other U.S.-average prices changed since that year. Leaves out today's item in every region.
+const T=[[`SINCE ${year}:`,"","m"]];
+for(const [k,s] of Object.entries(SER)){ if(!/U\.S\. City/.test(s.loc)||k.split(".")[0]===base) continue; const p=s.pts.find(p=>p[0]===year); if(!p) continue;
+  const c=(s.pts[s.pts.length-1][1]/p[1]-1)*100; T.push([k,(c>=0?"+":"")+c.toFixed(0)+"%",c>=0?"u":"d"]) }
+if(T.length<3) T.push(["GUESS THE PRICE","","m"],["NEW PUZZLE DAILY","","m"]);
+$("tick").innerHTML='<div id="tk">'+[...T,...T,...T,...T].map(([s,v,c])=>`<span>${s} <span class="${c}">${v}</span></span>`).join("")+'</div>';
+// Timeline (15 s, matched by teaserSoundtrack() in scripts/video-audio.mjs): the question from the first frame, six empty
+// guesses, "comment your guess", the end card, then the question again where it started, so a replay loops smoothly.
+window.render=function(t){
+  $("tk").style.transform=`translateX(${-t*90}px)`;
+  $("brand").style.opacity=t<10.3?1-ease((t-1.5)/.3):ease((t-13.3)/.4);
+  const back=t>=13.3; // the closing question, full size, where the video began
+  $("q").style.opacity=back?ease((t-13.3)/.4):t<10.3?1:1-ease((t-10.3)/.3);
+  const m=back?0:ease((t-1.5)/.5);
+  $("q").style.transform=`translateY(${-m*170}px) scale(${1-m*.32})`;
+  $("game").style.opacity=win(t,1.6,10.3,.3);
+  $("cur").style.opacity=(Math.floor(t*2.5)%2)?1:0;
+  for(let n=1;n<=6;n++){const a=2.1+(n-1)*.45; $("s"+n).style.opacity=ease((t-a)/.25); $("s"+n).style.transform=`scale(${1+.1*(1-ease((t-a)/.3))})`}
+  const c=win(t,5.4,10.3,.3); $("cta").style.opacity=c; $("cta").style.transform=`scale(${1+.12*(1-ease((t-5.4)/.4))})`;
+  $("end").style.opacity=win(t,10.6,13.1,.4); $("end").style.transform=`translateY(${(1-ease((t-10.6)/.6))*50}px)`;
+};
+render(0);
+</script></body></html>

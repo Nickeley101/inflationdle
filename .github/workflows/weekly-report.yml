@@ -1,0 +1,42 @@
+name: Weekly report
+
+# Every Monday: site visits, visitor counter, Bluesky and YouTube numbers, and whether the dle directories list
+# the game. The report is on the run's summary page (and in the log). Nothing is posted anywhere.
+on:
+  schedule:
+    - cron: "7 14 * * 1"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/weekly-report.mjs"
+      - ".github/workflows/weekly-report.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Install Playwright Chromium
+        run: |
+          npm i --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Build the report
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/weekly-report.mjs
+      - uses: actions/upload-artifact@v7
+        with:
+          name: weekly-report
+          path: out/report.md
+          retention-days: 90

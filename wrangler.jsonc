@@ -1,0 +1,16 @@
+// Inflationdle runs as one Cloudflare Worker. Static files are served straight from the repo;
+// /api/* (the live visitor counter, stored in D1) and /prices/* (hides the item of a live daily round) go through
+// worker/index.js.
+{
+  "name": "inflationdle",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/prices", "/prices/*"]
+  },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "inflationdle-counter", "database_id": "9c585776-cc67-4dde-8b99-cc203bd5a880" }
+  ]
+}

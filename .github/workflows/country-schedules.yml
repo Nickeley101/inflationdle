@@ -1,0 +1,29 @@
+name: Country schedules
+
+# Each country's daily reads data/countries/<code>.schedule.json. A change to a country's prices must come with
+# its re-planned schedule (node scripts/schedule.mjs --country <code>), so check every country on pull requests.
+on:
+  pull_request:
+    paths:
+      - "data/countries/**"
+      - "scripts/schedule.mjs"
+      - ".github/workflows/country-schedules.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Check every country schedule matches its price data
+        run: |
+          shopt -s nullglob
+          for f in data/countries/??.json; do
+            node scripts/schedule.mjs --country "$(basename "$f" .json)" --check
+          done

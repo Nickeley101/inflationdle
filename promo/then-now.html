@@ -1,0 +1,66 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;800&family=JetBrains+Mono:wght@400;600;800&family=IBM+Plex+Sans:wght@400;500;600&display=block">
+<script src="series.js"></script>
+<style>
+:root{--bg:#0a0e13;--panel:#11171f;--line:#233040;--text:#dbe4ee;--muted:#7c8b9d;--up:#1fd67f;--down:#ff4d5e;--warm:#f5b83d;--cyan:#4cc9f0;
+--mono:"JetBrains Mono",ui-monospace,monospace;--disp:"Barlow Condensed","Arial Narrow",Impact,sans-serif;--sans:"IBM Plex Sans",system-ui,sans-serif}
+*{box-sizing:border-box;margin:0}
+html,body{background:var(--bg);color:var(--text);font-family:var(--sans);overflow:hidden}
+#stage{position:relative;overflow:hidden;background:radial-gradient(900px 700px at 50% 35%,#12202c 0%,var(--bg) 70%)}
+.abs{position:absolute;left:0;right:0;text-align:center}
+.brand{font:800 50px var(--disp);letter-spacing:.02em;text-transform:uppercase}
+.brand em{font-style:normal;color:var(--up);text-shadow:0 0 30px rgba(31,214,127,.5)}
+.title{font:800 110px/1 var(--disp);text-transform:uppercase}
+.title em{font-style:normal;color:var(--cyan);text-shadow:0 0 36px rgba(76,201,240,.45)}
+.sub{margin-top:14px;font:500 34px var(--sans);color:var(--muted)}
+#tiles{position:absolute;display:grid;gap:24px;grid-auto-rows:1fr}
+.tile{min-width:0;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;background:var(--panel);border:2px solid var(--line);border-radius:24px;padding:20px 28px;opacity:0}
+.tile .n{font:700 44px var(--disp);text-transform:uppercase;letter-spacing:.04em}
+.tile .u{font:500 24px var(--sans);color:var(--muted)}
+.tile .row{display:flex;flex-direction:column;margin-top:10px}
+.tile .lab{font:600 22px var(--mono);color:#56657a;letter-spacing:.06em}
+.tile .then{font:600 34px var(--mono);color:var(--muted)}
+.tile .now{font:800 92px/1 var(--disp);color:var(--up)}
+.tile .pct{margin-top:12px;align-self:flex-start;display:inline-block;padding:4px 16px;border-radius:30px;font:800 32px var(--mono)}
+.pct.hot{background:rgba(255,77,94,.14);color:var(--down)} .pct.cool{background:rgba(31,214,127,.12);color:var(--up)}
+.foot .a{font:800 60px var(--disp);text-transform:uppercase}.foot .a em{font-style:normal;color:var(--warm)}
+.foot .b{margin-top:10px;font:500 30px var(--sans);color:var(--muted)}
+.leg{margin-top:14px;font:500 26px var(--sans);color:var(--muted)}
+.leg b{font-family:var(--mono)}.leg .h{color:var(--down)}.leg .c{color:var(--up)}
+.src{font:400 22px var(--mono);color:#56657a}
+</style></head>
+<body><div id="stage">
+<div class="abs brand" id="brand">Inflation<em>dle</em></div>
+<div class="abs" id="head"><div class="title"><em>1980</em> vs today</div><div class="sub">U.S. average prices</div></div>
+<div id="tiles"></div>
+<div class="abs foot" id="foot"><div class="a">All prices since 1980: <em id="cpiup"></em></div>
+ <div class="leg"><b class="h">red</b> = rose faster than inflation · <b class="c">green</b> = slower</div></div>
+<div class="abs src" id="src">January 1980 vs August 2026 · BLS average prices &amp; CPI-U via FRED</div>
+</div>
+<script>
+const q=new URLSearchParams(location.search), SQ=q.get("fmt")==="s";
+const W=1080,H=SQ?1080:1920; const st=document.getElementById("stage"); st.style.width=W+"px"; st.style.height=H+"px";
+const $=id=>document.getElementById(id);
+const ITEMS=[["EGGS","Eggs","per dozen"],["BREAD","White bread","per pound"],["COFFEE","Coffee","ground, per pound"],["BANANA","Bananas","per pound"],["BACON","Bacon","per pound"],["GAS","Gas","per gallon"]];
+const CPI_UP=Math.round((CPI.v[CPI.v.length-1]/CPI.v[(1980-1975)*12]-1)*100);
+const tiles=ITEMS.map(([k,n,u])=>{const P=SER[k].pts, a=P.find(p=>p[0]===1980)[1], b=P[P.length-1][1];return {n,u,a,b,pct:Math.round((b/a-1)*100)}});
+$("tiles").innerHTML=tiles.map((d,i)=>`<div class="tile" id="t${i}"><div class="n">${d.n}</div><div class="u">${d.u}</div>
+ <div class="row"><span class="then"><span class="lab">1980 </span>$${d.a.toFixed(2)}</span><span class="lab" style="margin-top:8px">TODAY</span><span class="now" id="v${i}">$${d.a.toFixed(2)}</span></div>
+ <span class="pct ${d.pct>CPI_UP?"hot":"cool"}" id="p${i}">+0%</span></div>`).join("");
+{const MON=["January","February","March","April","May","June","July","August","September","October","November","December"], [y,m]=SER.GAS.pts[SER.GAS.pts.length-1][3].split("-").map(Number); $("src").textContent=`January 1980 vs ${MON[m-1]} ${y} · BLS average prices & CPI-U via FRED`}
+$("cpiup").textContent="+"+CPI_UP+"%";
+const L=SQ?{brand:30,head:75,tiles:[40,215,1000,700],cols:3,foot:935,src:1045}:{brand:230,head:330,tiles:[60,525,960,1105],cols:2,foot:1665,src:1790};
+$("brand").style.top=L.brand+"px";$("head").style.top=L.head+"px";$("foot").style.top=L.foot+"px";$("src").style.top=L.src+"px";
+if(SQ){document.head.insertAdjacentHTML("beforeend","<style>.tile{padding:16px 22px;border-radius:18px}.tile .n{font-size:34px}.tile .u{font-size:20px}.tile .then{font-size:26px}.tile .now{font-size:64px}.tile .pct{font-size:24px;margin-top:6px}.tile .lab{font-size:18px}.tile .row{margin-top:4px}.sub{font-size:28px;margin-top:4px}</style>");document.querySelector(".title").style.fontSize="90px";document.querySelector(".foot .a").style.fontSize="50px";$("brand").style.fontSize="40px"}
+const [tx,ty,tw,th]=L.tiles; Object.assign($("tiles").style,{left:tx+"px",top:ty+"px",width:tw+"px",height:th+"px",gridTemplateColumns:`repeat(${L.cols},1fr)`});
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)), ease=x=>{x=clamp(x);return 1-Math.pow(1-x,3)};
+window.render=function(t){
+  $("head").style.opacity=ease((t-.1)/.4);
+  tiles.forEach((d,i)=>{const s=.8+i*.35, e=ease((t-s)/.35), c=ease((t-s-.3)/2.2);
+    const el=$("t"+i); el.style.opacity=e; el.style.transform=`translateY(${(1-e)*40}px)`;
+    $("v"+i).textContent="$"+(d.a+(d.b-d.a)*c).toFixed(2); $("p"+i).textContent="+"+Math.round(d.pct*c)+"%"});
+  $("foot").style.opacity=ease((t-5.4)/.5); $("src").style.opacity=ease((t-5.4)/.5);
+};
+render(0);
+</script></body></html>

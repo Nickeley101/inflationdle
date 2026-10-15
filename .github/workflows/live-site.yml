@@ -1,0 +1,44 @@
+name: Live site checks
+
+# Read-only checks against https://inflationdle.com: security headers, https, private files returning 404, the
+# visitor API refusing writes it shouldn't take, and a live round's price page staying hidden. Runs daily, after
+# each deploy from main, and on pull requests that change these checks. A failure emails the repo owner.
+on:
+  schedule:
+    - cron: "40 12 * * *"
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "tests/live/**"
+      - "tests/lib/**"
+      - ".github/workflows/live-site.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Wait for Cloudflare to deploy this commit
+        if: github.event_name == 'push'
+        run: sleep 180
+      - name: Check inflationdle.com
+        working-directory: tests
+        run: npm run test:live
+      - name: Check the workers.dev address too (skipped if it's turned off)
+        if: always()
+        working-directory: tests
+        env:
+          SITE: https://inflationdle.nickeley101.workers.dev
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" "$SITE/")
+          if [ "$code" != "200" ]; then echo "::notice::$SITE answers $code, so it's off; nothing to check."; exit 0; fi
+          npm run test:live
