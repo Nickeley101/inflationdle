@@ -146,7 +146,7 @@ function bidError(t){$("err").textContent=t;$("err").hidden=!t;$("range").classL
 $("form").addEventListener("submit",e=>{
   e.preventDefault(); if(done)return;
   const raw=$("guess").value.replace(/[$,\s]/g,""); const g=parseFloat(raw);
-  if(!(g>0)||g>(US?100000:1e9))return bidError(US?"Enter a price in dollars, like 1.25.":"Enter a price, like "+cents(DATA.example||1.25).replace(/[^\d.,]/g,"")+".");
+  if(!(g>0)||g>1e9)return bidError(US?"Enter a price in dollars, like 1.25.":"Enter a price, like "+cents(DATA.example||1.25).replace(/[^\d.,]/g,"")+".");
   // A bid the earlier answers already rule out can't win, so it doesn't cost a guess.
   const gr=Math.round(g*10**CUR.decimals)/10**CUR.decimals, [lo,hi]=bounds();
   if(guesses.includes(gr))return bidError(`You already bid ${cents(gr)}.`);
