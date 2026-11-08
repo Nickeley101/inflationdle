@@ -7,7 +7,11 @@ import {roundFor} from "../lib/game-data.mjs";
 export const todayNY = (d = new Date()) => d.toLocaleDateString("en-CA", {timeZone: "America/New_York"});
 export const addDays = (ymd, n) => new Date(Date.parse(ymd + "T12:00:00Z") + n * 864e5).toISOString().slice(0, 10);
 // Noon in New York on that date, so the local date is the same in every browser.
-export const noonNY = ymd => new Date(ymd + "T12:00:00-04:00");
+export const noonNY = ymd => {
+  const summer = new Date(ymd + "T12:00:00-04:00");
+  const hour = summer.toLocaleString("en-US", {timeZone: "America/New_York", hour: "numeric", hourCycle: "h23"});
+  return hour === "12" ? summer : new Date(ymd + "T12:00:00-05:00");
+};
 
 export const test = base.extend({
   issues: [async ({page}, use) => {
